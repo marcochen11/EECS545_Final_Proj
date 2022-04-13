@@ -30,7 +30,7 @@ def inference(args, model, test_save_path=None):
         image, label, case_name = sampled_batch["image"], sampled_batch["label"], sampled_batch['case_name'][0]
         # print(image.shape)
         metric_i = None
-        metric_i = test_single_volume(image, label, model, classes=args.num_class, patch_size=[192, 256],
+        metric_i = test_single_volume(image, label, model, classes=args.num_class, patch_size=[256, 256],
                                       test_save_path=test_save_path, case=case_name, z_spacing=1)
 
         metric_list += np.array(metric_i)

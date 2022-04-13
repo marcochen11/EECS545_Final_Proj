@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from torchvision.models import resnet34 as resnet
-from .DeiT import deit_small_patch16_224 as deit
+from .utnet import UTNet
 from torch.nn import CrossEntropyLoss, Dropout, Softmax, Linear, Conv2d, LayerNorm
 import torch.nn.functional as F
 import numpy as np
@@ -78,9 +78,10 @@ class TransFuse_S(nn.Module):
         self.resnet.fc = nn.Identity()
         self.resnet.layer4 = nn.Identity()
 
-        self.transformer = deit(pretrained=pretrained)
+        self.transformer = UTNet(1, 32, 14, reduce_size=8, block_list='1234', num_blocks=[1,1,1,1], num_heads=[4,4,4,4], projection='interp', \
+            attn_drop=0.1, proj_drop=0.1, rel_pos=True, aux_loss=False, maxpool=True)
 
-        self.up1 = Up(in_ch1=384, out_ch=128)
+        self.up1 = Up(in_ch1=256, out_ch=128)
         self.up2 = Up(128, 64)
 
         self.final_x = nn.Sequential(
@@ -99,7 +100,7 @@ class TransFuse_S(nn.Module):
             Conv(64, num_classes, 3, bn=False, relu=False)
             )
 
-        self.up_c = BiFusion_block(ch_1=256, ch_2=384, r_2=4, ch_int=256, ch_out=256, drop_rate=drop_rate/2)
+        self.up_c = BiFusion_block(ch_1=256, ch_2=256, r_2=4, ch_int=256, ch_out=256, drop_rate=drop_rate/2)
 
         self.up_c_1_1 = BiFusion_block(ch_1=128, ch_2=128, r_2=2, ch_int=128, ch_out=128, drop_rate=drop_rate/2)
         self.up_c_1_2 = Up(in_ch1=256, out_ch=128, in_ch2=128, attn=True)
@@ -115,40 +116,58 @@ class TransFuse_S(nn.Module):
     def forward(self, imgs, labels=None):
         # bottom-up path
         x_b = self.transformer(imgs)
+        # print(x_b.shape)
         x_b = torch.transpose(x_b, 1, 2)
-        x_b = x_b.view(x_b.shape[0], -1, 12, 16)
+        x_b = x_b.view(x_b.shape[0], -1, 16, 16)
+        # print("6", end=":")
+        # print(x_b.shape)
         x_b = self.drop(x_b)
-
+        # print("7", end=":")
+        # print(x_b.shape)
         x_b_1 = self.up1(x_b)
+        # print("8", end=":")
+        # print(x_b_1.shape)
         x_b_1 = self.drop(x_b_1)
-
+        # print("9", end=":")
+        # print(x_b_1.shape)
         x_b_2 = self.up2(x_b_1)  # transformer pred supervise here
+        # print("10", end=":")
+        # print(x_b_2.shape)
         x_b_2 = self.drop(x_b_2)
+        # print("11", end=":")
+        # print(x_b_2.shape)
 
         # top-down path
         x_u = self.resnet.conv1(imgs)
         x_u = self.resnet.bn1(x_u)
         x_u = self.resnet.relu(x_u)
         x_u = self.resnet.maxpool(x_u)
-
+        # print("12", end=":")
+        # print(x_u.shape)
         x_u_2 = self.resnet.layer1(x_u)
         x_u_2 = self.drop(x_u_2)
-
+        # print("13", end=":")
+        # print(x_u_2.shape)
         x_u_1 = self.resnet.layer2(x_u_2)
         x_u_1 = self.drop(x_u_1)
-
+        # print("14", end=":")
+        # print(x_u_1.shape)
         x_u = self.resnet.layer3(x_u_1)
         x_u = self.drop(x_u) 
-
+        # print("15", end=":")
+        # print(x_u.shape)
         # joint path
         x_c = self.up_c(x_u, x_b)
-
+        # print("16", end=":")
+        # print(x_c.shape)
         x_c_1_1 = self.up_c_1_1(x_u_1, x_b_1)
         x_c_1 = self.up_c_1_2(x_c, x_c_1_1)
-
+        # print("17", end=":")
+        # print(x_c_1.shape)
         x_c_2_1 = self.up_c_2_1(x_u_2, x_b_2)
         x_c_2 = self.up_c_2_2(x_c_1, x_c_2_1) # joint predict low supervise here
-
+        # print("18", end=":")
+        # print(x_c_2.shape)
         # decoder part
         map_x = F.interpolate(self.final_x(x_c), scale_factor=16, mode='bilinear')
         map_1 = F.interpolate(self.final_1(x_b_2), scale_factor=4, mode='bilinear')

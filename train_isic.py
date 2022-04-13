@@ -120,10 +120,15 @@ if __name__ == '__main__':
     parser.add_argument('--list_dir', type=str, default= '/home/marco/Documents/TransFuse/lists/lists_Synapse', help='list_dir')
     parser.add_argument('--num_class', type=int, default=14, help='number of segmentation classes')
     parser.add_argument('-o', '--log-path', type=str, default= '/home/marco/Documents/TransFuse/log/', help='log path')
+    parser.add_argument('--resume', action="store_true", help='resume training')
+    parser.add_argument('--checkpoint_model', type=str, default='Transfuse', help='model_name for test')
     opt = parser.parse_args() 
 
     # ---- build models ----
     model = TransFuse_S(pretrained=True, num_classes=opt.num_class).cuda()
+    if opt.resume:
+        msg = model.load_state_dict(torch.load(opt.log_path + opt.checkpoint_model))
+        print("Successfully Loaded Checkpoint")
     params = model.parameters()
     optimizer = torch.optim.Adam(params, opt.lr, betas=(opt.beta1, opt.beta2))
      
@@ -133,7 +138,7 @@ if __name__ == '__main__':
     # train_loader = get_loader(image_root, gt_root, batchsize=opt.batchsize)
     db_train = Synapse_dataset(base_dir=opt.data_path, list_dir=opt.list_dir, split="train",
                                transform=transforms.Compose(
-                                   [RandomGenerator(output_size=[192, 256])]))
+                                   [RandomGenerator(output_size=[256, 256])]))
     def worker_init_fn(worker_id):
         random.seed(args.seed + worker_id)
     train_loader = DataLoader(db_train, batch_size=opt.batchsize, shuffle=True, num_workers=0, pin_memory=True,
@@ -145,6 +150,7 @@ if __name__ == '__main__':
     best_loss = 1e5
     for epoch in range(1, opt.epoch + 1):
         best_loss = train(train_loader, model, optimizer, epoch, best_loss, opt, epoch)
+        print(epoch)
         save_interval = 10
         if epoch == 1:
             save_mode_path = os.path.join(opt.log_path + 'Transfuse_epoch_' + str(epoch) + '.pth')

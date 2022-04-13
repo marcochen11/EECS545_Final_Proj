@@ -37,7 +37,10 @@ class DeiT(VisionTransformer):
 
         for blk in self.blocks:
             x = blk(x)
-
+            import matplotlib.pyplot as plt
+            plt.imshow(x[0].cpu().detach().numpy())
+            plt.show()
+            
         x = self.norm(x)
         return x
 
