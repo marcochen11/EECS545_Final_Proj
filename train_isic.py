@@ -49,10 +49,8 @@ def train(train_loader, model, optimizer, epoch, best_loss, opt, iter_num):
             loss = 0.4 * loss_ce + 0.6 * loss_dice
             optimizer.zero_grad()
             loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), opt.grad_norm)
             optimizer.step()
-            lr_ = opt.lr * (1.0 - iter_num / opt.epoch + 1) ** 0.9
-            for param_group in optimizer.param_groups:
-                param_group['lr'] = lr_
 
             iter_num = iter_num + 1
             print('iteration %d : loss : %f, loss_ce: %f' % (iter_num, loss.item(), loss_ce.item()))
@@ -116,10 +114,10 @@ if __name__ == '__main__':
     parser.add_argument('--train_save', type=str, default='TransFuse_S')
     parser.add_argument('--beta1', type=float, default=0.5, help='beta1 of adam optimizer')
     parser.add_argument('--beta2', type=float, default=0.999, help='beta2 of adam optimizer')
-    parser.add_argument('--data_path', type=str, default= '/home/marco/Documents/TransFuse/datasets/Synapse/train_npz/', help='dataset path')
-    parser.add_argument('--list_dir', type=str, default= '/home/marco/Documents/TransFuse/lists/lists_Synapse', help='list_dir')
+    parser.add_argument('--data_path', type=str, default= '../Synapse/train_npz/', help='dataset path')
+    parser.add_argument('--list_dir', type=str, default= '../Synapse/lists/lists_Synapse', help='list_dir')
     parser.add_argument('--num_class', type=int, default=14, help='number of segmentation classes')
-    parser.add_argument('-o', '--log-path', type=str, default= '/home/marco/Documents/TransFuse/log/', help='log path')
+    parser.add_argument('-o', '--log-path', type=str, default= 'log/', help='log path')
     opt = parser.parse_args() 
 
     # ---- build models ----
@@ -147,14 +145,14 @@ if __name__ == '__main__':
         best_loss = train(train_loader, model, optimizer, epoch, best_loss, opt, epoch)
         save_interval = 10
         if epoch == 1:
-            save_mode_path = os.path.join(opt.log_path + 'Transfuse_epoch_' + str(epoch) + '.pth')
+            save_mode_path = os.path.join(opt.log_path + 'Transfuse_new_epoch_' + str(epoch) + '.pth')
             torch.save(model.state_dict(), save_mode_path)
 
         if (epoch + 1) % save_interval == 0:
-            save_mode_path = os.path.join(opt.log_path + 'Transfuse_epoch_' + str(epoch) + '.pth')
+            save_mode_path = os.path.join(opt.log_path + 'Transfuse_new_epoch_' + str(epoch) + '.pth')
             torch.save(model.state_dict(), save_mode_path)
 
         if epoch >= opt.epoch - 1:
-            save_mode_path = os.path.join(opt.log_path + 'Transfuse_epoch_' + str(epoch) + '.pth')
+            save_mode_path = os.path.join(opt.log_path + 'Transfuse_new_epoch_' + str(epoch) + '.pth')
             torch.save(model.state_dict(), save_mode_path)
             break
