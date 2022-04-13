@@ -49,10 +49,8 @@ def train(train_loader, model, optimizer, epoch, best_loss, opt, iter_num):
             loss = 0.4 * loss_ce + 0.6 * loss_dice
             optimizer.zero_grad()
             loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), opt.grad_norm)
             optimizer.step()
-            lr_ = opt.lr * (1.0 - iter_num / opt.epoch + 1) ** 0.9
-            for param_group in optimizer.param_groups:
-                param_group['lr'] = lr_
 
             iter_num = iter_num + 1
             print('iteration %d : loss : %f, loss_ce: %f' % (iter_num, loss.item(), loss_ce.item()))
@@ -138,7 +136,7 @@ if __name__ == '__main__':
     # train_loader = get_loader(image_root, gt_root, batchsize=opt.batchsize)
     db_train = Synapse_dataset(base_dir=opt.data_path, list_dir=opt.list_dir, split="train",
                                transform=transforms.Compose(
-                                   [RandomGenerator(output_size=[256, 256])]))
+                                   [RandomGenerator(output_size=[224, 224])]))
     def worker_init_fn(worker_id):
         random.seed(args.seed + worker_id)
     train_loader = DataLoader(db_train, batch_size=opt.batchsize, shuffle=True, num_workers=0, pin_memory=True,

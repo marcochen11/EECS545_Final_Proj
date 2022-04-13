@@ -7,6 +7,7 @@ import torch.nn.functional as F
 import numpy as np
 import math
 from timm.models.layers import DropPath, to_2tuple, trunc_normal_
+from .swin_transformer import SwinTransformer
 
 
 class ChannelPool(nn.Module):
@@ -78,8 +79,26 @@ class TransFuse_S(nn.Module):
         self.resnet.fc = nn.Identity()
         self.resnet.layer4 = nn.Identity()
 
-        self.transformer = UTNet(1, 32, 14, reduce_size=8, block_list='1234', num_blocks=[1,1,1,1], num_heads=[4,4,4,4], projection='interp', \
-            attn_drop=0.1, proj_drop=0.1, rel_pos=True, aux_loss=False, maxpool=True)
+        # self.transformer = UTNet(1, 32, 14, reduce_size=8, block_list='1234', num_blocks=[1,1,1,1], num_heads=[4,4,4,4], projection='interp', \
+        #     attn_drop=0.1, proj_drop=0.1, rel_pos=True, aux_loss=False, maxpool=True)
+        self.transformer = SwinTransformer(img_size=224,
+                                patch_size=4,
+                                in_chans=3,
+                                num_classes=1000,
+                                embed_dim=128,
+                                depths=[2,2,18,2],
+                                num_heads=[4,8,16,32],
+                                window_size=7,
+                                mlp_ratio=4.0,
+                                qkv_bias=True,
+                                qk_scale=None,
+                                drop_rate=0.0,
+                                drop_path_rate=0.5,
+                                ape=False,
+                                patch_norm=True,
+                                use_checkpoint=False)
+        checkpoint = torch.load('pretrained/swin_base_patch4_window7_224.pth', map_location='cpu')
+        msg = self.transformer.load_state_dict(checkpoint['model'], strict=False)
 
         self.up1 = Up(in_ch1=256, out_ch=128)
         self.up2 = Up(128, 64)
@@ -118,7 +137,8 @@ class TransFuse_S(nn.Module):
         x_b = self.transformer(imgs)
         # print(x_b.shape)
         x_b = torch.transpose(x_b, 1, 2)
-        x_b = x_b.view(x_b.shape[0], -1, 16, 16)
+        # print(x_b.shape)
+        x_b = x_b.reshape(x_b.shape[0], -1, 14, 14)
         # print("6", end=":")
         # print(x_b.shape)
         x_b = self.drop(x_b)

@@ -1,1 +1,4 @@
 log/* filter=lfs diff=lfs merge=lfs -text
+pretrained/deit_small_patch16_224-cd65a155.pth filter=lfs diff=lfs merge=lfs -text
+pretrained/resnet34-333f7ec4.pth filter=lfs diff=lfs merge=lfs -text
+pretrained/swin_base_patch4_window7_224.pth filter=lfs diff=lfs merge=lfs -text
